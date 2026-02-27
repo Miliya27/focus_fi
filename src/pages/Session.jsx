@@ -7,17 +7,23 @@ function Session() {
   const [running, setRunning] = useState(false);
   const [userAActive, setUserAActive] = useState(true);
   const [userBActive, setUserBActive] = useState(true);
+  const [roomCode, setRoomCode] = useState("");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    const roomRef = ref(db, "rooms/demoRoom");
-
     const params = new URLSearchParams(window.location.search);
+
+    const code = params.get("room");
+    setRoomCode(code);
+
     const role =
       params.get("role") === "B"
         ? "userB_active"
         : "userA_active";
 
     const isController = role === "userA_active";
+
+    const roomRef = ref(db, `rooms/${code}`);
 
     let timerInterval = null;
 
@@ -79,11 +85,24 @@ function Session() {
         "visibilitychange",
         handleVisibility
       );
-
       if (timerInterval) clearInterval(timerInterval);
       unsubscribe();
     };
   }, []);
+
+  // ⭐ COPY TO CLIPBOARD FUNCTION
+  const copyRoomCode = async () => {
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      setCopied(true);
+
+      setTimeout(() => {
+        setCopied(false);
+      }, 1500);
+    } catch (err) {
+      console.log("Copy failed");
+    }
+  };
 
   const formatTime = () => {
     const minutes = Math.floor(timer / 60);
@@ -99,68 +118,63 @@ function Session() {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        fontFamily: "Poppins, sans-serif",
-        padding: "20px",
+        fontFamily: "Poppins",
       }}
     >
       <div
         style={{
           background: "#DDE3DC",
-          padding: "40px 30px",
-          borderRadius: "24px",
-          width: "100%",
-          maxWidth: "400px",
+          padding: "40px",
+          borderRadius: "20px",
           textAlign: "center",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
+          width: "350px",
         }}
       >
-        <h1
-          style={{
-            color: "#2F3A34",
-            fontWeight: 600,
-            marginBottom: "30px",
-          }}
-        >
-          Focus Session
-        </h1>
+        {/* ROOM CODE + COPY BUTTON */}
+        <div
+  style={{
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: "10px",
+    marginBottom: "20px",
+    fontWeight: "600",
+    color: "#2F3A34",
+  }}
+>
+  <span>Room Code: {roomCode}</span>
 
-        <h2
-          style={{
-            fontSize: "48px",
-            color: "#6F916F",
-            fontWeight: 600,
-            marginBottom: "10px",
-          }}
-        >
+  <button
+    onClick={copyRoomCode}
+    style={{
+      border: "none",
+      background: "transparent",
+      cursor: "pointer",
+      fontSize: "18px",
+    }}
+    title="Copy Room Code"
+  >
+    {copied ? "✔️" : "📋"}
+  </button>
+</div>
+        <h1 style={{ color: "#2F3A34" }}>Focus Session</h1>
+
+        <h2 style={{ fontSize: "48px", color: "#6F916F" }}>
           {formatTime()}
         </h2>
 
-        <p
-          style={{
-            color: running ? "#6F916F" : "#8A9A8F",
-            fontWeight: 500,
-            marginBottom: "30px",
-          }}
-        >
+        <p>
           {running ? "Session Running" : "Session Paused"}
         </p>
 
-        <div
-          style={{
-            background: "#EEF2ED",
-            padding: "20px",
-            borderRadius: "18px",
-            fontSize: "14px",
-            color: "#2F3A34",
-          }}
-        >
-          <p style={{ margin: "8px 0" }}>
-            User A: {userAActive ? "🟢 Active" : "🔴 Inactive"}
-          </p>
-          <p style={{ margin: "8px 0" }}>
-            User B: {userBActive ? "🟢 Active" : "🔴 Inactive"}
-          </p>
-        </div>
+        <hr />
+
+        <p>
+          User A: {userAActive ? "🟢 Active" : "🔴 Inactive"}
+        </p>
+        <p>
+          User B: {userBActive ? "🟢 Active" : "🔴 Inactive"}
+        </p>
       </div>
     </div>
   );
