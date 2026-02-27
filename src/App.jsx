@@ -1,99 +1,92 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { db } from "./firebase";
 import { ref, onValue, update, get } from "firebase/database";
 
 function App() {
-
-  const [userRole, setUserRole] = useState(null);
-
   useEffect(() => {
 
     const roomRef = ref(db, "rooms/demoRoom");
+
+    const params = new URLSearchParams(window.location.search);
+    const role =
+      params.get("role") === "B"
+        ? "userB_active"
+        : "userA_active";
+
+    console.log("My role:", role);
+
     let timerInterval = null;
 
-    // ⭐ Assign role
-    const assignRole = async () => {
+    // ⭐ ONLY USER A CAN CONTROL TIMER
+    const isController = role === "userA_active";
 
-      const snapshot = await get(roomRef);
-      const data = snapshot.val();
-
-      if (!data.userA_taken) {
-        await update(roomRef, { userA_taken: true });
-        setUserRole("userA_active");
-        console.log("You are User A");
-      } else {
-        await update(roomRef, { userB_taken: true });
-        setUserRole("userB_active");
-        console.log("You are User B");
-      }
-    };
-
-    assignRole();
-
-    // ⭐ Listen realtime
-    const unsubscribe = onValue(roomRef, (snapshot) => {
-
+    onValue(roomRef, (snapshot) => {
       const data = snapshot.val();
       if (!data) return;
-
-      console.log("Firebase Data:", data);
 
       const shouldRun =
         data.userA_active && data.userB_active;
 
-      if (data.running !== shouldRun) {
-        update(roomRef, { running: shouldRun });
-      }
+      // controller updates running state
+      if (isController) {
+        if (data.running !== shouldRun) {
+          update(roomRef, { running: shouldRun });
+        }
 
-      // ⭐ ONLY USER A controls timer
-      if (userRole === "userA_active") {
+        // START TIMER (only once)
+        if (shouldRun && !timerInterval) {
+          console.log("Timer started");
 
-        if (data.running && !timerInterval) {
-          timerInterval = setInterval(() => {
+          timerInterval = setInterval(async () => {
+            const snap = await get(roomRef);
+            const latest = snap.val();
+
+            if (!latest.running) return;
+
             update(roomRef, {
-              timer: data.timer + 1
+              timer: (latest.timer || 0) + 1,
             });
           }, 1000);
         }
 
-        if (!data.running && timerInterval) {
+        // STOP TIMER
+        if (!shouldRun && timerInterval) {
+          console.log("Timer stopped");
           clearInterval(timerInterval);
           timerInterval = null;
         }
       }
-
     });
 
-    // ⭐ tab visibility
+    // tab visibility detection
     const handleVisibility = () => {
-
-      if (!userRole) return;
-
       const isActive =
         document.visibilityState === "visible";
 
       update(roomRef, {
-        [userRole]: isActive
+        [role]: isActive,
       });
 
       console.log("Tab active:", isActive);
     };
-    handleVisibility(); 
+
     document.addEventListener(
       "visibilitychange",
       handleVisibility
     );
+
+    handleVisibility();
 
     return () => {
       document.removeEventListener(
         "visibilitychange",
         handleVisibility
       );
-      clearInterval(timerInterval);
-      unsubscribe();
+
+      if (timerInterval) clearInterval(timerInterval);
     };
 
-  }, [userRole]);
+  }, []);
 
   return <h1>Focus-Fi Backend Running 🚀</h1>;
 }
