@@ -1,19 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ref, onValue, update, get } from "firebase/database";
 import { db } from "../firebase";
 
 function Session() {
-  // UI states (from your friend)
   const [timer, setTimer] = useState(0);
   const [running, setRunning] = useState(false);
   const [userAActive, setUserAActive] = useState(true);
   const [userBActive, setUserBActive] = useState(true);
 
+  const intervalRef = useRef(null);
+
   useEffect(() => {
+    const roomRef = ref(db, "rooms/demoRoom");
 
-    const roomRef = ref(database, "rooms/demoRoom");
-
-    // role from URL
     const params = new URLSearchParams(window.location.search);
     const role =
       params.get("role") === "B"
@@ -22,14 +21,10 @@ function Session() {
 
     const isController = role === "userA_active";
 
-    let timerInterval = null;
-
-    // 🔥 realtime listener
     const unsubscribe = onValue(roomRef, (snapshot) => {
       const data = snapshot.val();
       if (!data) return;
 
-      // UI updates
       setTimer(data.timer || 0);
       setRunning(data.running);
       setUserAActive(data.userA_active);
@@ -38,18 +33,14 @@ function Session() {
       const shouldRun =
         data.userA_active && data.userB_active;
 
-      // ONLY controller handles timer logic
       if (isController) {
-
         if (data.running !== shouldRun) {
           update(roomRef, { running: shouldRun });
         }
 
-        // start timer
-        if (shouldRun && !timerInterval) {
-
-          timerInterval = setInterval(async () => {
-
+        // START TIMER
+        if (shouldRun && !intervalRef.current) {
+          intervalRef.current = setInterval(async () => {
             const snap = await get(roomRef);
             const latest = snap.val();
 
@@ -58,19 +49,17 @@ function Session() {
             update(roomRef, {
               timer: (latest.timer || 0) + 1,
             });
-
           }, 1000);
         }
 
-        // stop timer
-        if (!shouldRun && timerInterval) {
-          clearInterval(timerInterval);
-          timerInterval = null;
+        // STOP TIMER
+        if (!shouldRun && intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
         }
       }
     });
 
-    // tab visibility tracking
     const handleVisibility = () => {
       const isActive =
         document.visibilityState === "visible";
@@ -93,13 +82,15 @@ function Session() {
         handleVisibility
       );
 
-      if (timerInterval) clearInterval(timerInterval);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+
       unsubscribe();
     };
-
   }, []);
 
-  // UI helper
   const formatTime = () => {
     const minutes = Math.floor(timer / 60);
     const seconds = timer % 60;
@@ -110,14 +101,27 @@ function Session() {
     <div style={{ textAlign: "center", marginTop: "100px" }}>
       <h1>Focus Session</h1>
 
-      <h2>{formatTime()}</h2>
+      <h2 style={{ fontSize: "48px" }}>{formatTime()}</h2>
 
-      <p>Status: {running ? "Running" : "Paused"}</p>
+      <p style={{ color: running ? "green" : "red" }}>
+        Status: {running ? "Running" : "Paused"}
+      </p>
 
       <hr />
 
-      <p>User A: {userAActive ? "🟢 Active" : "🔴 Inactive"}</p>
-      <p>User B: {userBActive ? "🟢 Active" : "🔴 Inactive"}</p>
+      <p>
+        User A: {userAActive ? "🟢 Active" : "🔴 Inactive"}
+      </p>
+
+      <p>
+        User B: {userBActive ? "🟢 Active" : "🔴 Inactive"}
+      </p>
+
+      {(!userAActive || !userBActive) && (
+        <h3 style={{ color: "red" }}>
+          ⚠ Someone switched tabs!
+        </h3>
+      )}
     </div>
   );
 }
