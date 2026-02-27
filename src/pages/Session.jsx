@@ -10,18 +10,24 @@ function Session() {
   const [roomCode, setRoomCode] = useState("");
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+  // ⭐ role + partner detection
+  const params = new URLSearchParams(window.location.search);
+  const role = params.get("role");
 
+  const partnerActive =
+    role === "A" ? userBActive : userAActive;
+
+  useEffect(() => {
     const code = params.get("room");
     setRoomCode(code);
 
-    const role =
-      params.get("role") === "B"
+    const firebaseRole =
+      role === "B"
         ? "userB_active"
         : "userA_active";
 
-    const isController = role === "userA_active";
+    const isController =
+      firebaseRole === "userA_active";
 
     const roomRef = ref(db, `rooms/${code}`);
 
@@ -69,7 +75,7 @@ function Session() {
         document.visibilityState === "visible";
 
       update(roomRef, {
-        [role]: isActive,
+        [firebaseRole]: isActive,
       });
     };
 
@@ -90,7 +96,7 @@ function Session() {
     };
   }, []);
 
-  // ⭐ COPY TO CLIPBOARD FUNCTION
+  // ⭐ copy room code
   const copyRoomCode = async () => {
     try {
       await navigator.clipboard.writeText(roomCode);
@@ -99,7 +105,7 @@ function Session() {
       setTimeout(() => {
         setCopied(false);
       }, 1500);
-    } catch (err) {
+    } catch {
       console.log("Copy failed");
     }
   };
@@ -130,33 +136,50 @@ function Session() {
           width: "350px",
         }}
       >
-        {/* ROOM CODE + COPY BUTTON */}
+        {/* ROOM CODE + COPY */}
         <div
-  style={{
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: "10px",
-    marginBottom: "20px",
-    fontWeight: "600",
-    color: "#2F3A34",
-  }}
->
-  <span>Room Code: {roomCode}</span>
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: "10px",
+            marginBottom: "20px",
+            fontWeight: "600",
+            color: "#2F3A34",
+          }}
+        >
+          <span>Room Code: {roomCode}</span>
 
-  <button
-    onClick={copyRoomCode}
-    style={{
-      border: "none",
-      background: "transparent",
-      cursor: "pointer",
-      fontSize: "18px",
-    }}
-    title="Copy Room Code"
-  >
-    {copied ? "✔️" : "📋"}
-  </button>
-</div>
+          <button
+            onClick={copyRoomCode}
+            style={{
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              fontSize: "18px",
+            }}
+            title="Copy Room Code"
+          >
+            {copied ? "✔️" : "📋"}
+          </button>
+        </div>
+
+        {/* ⭐ PARTNER TAB CHANGE MESSAGE */}
+        {!partnerActive && (
+          <p
+            style={{
+              background: "#FFE8E8",
+              color: "#C0392B",
+              padding: "10px",
+              borderRadius: "10px",
+              fontWeight: "600",
+              marginBottom: "15px",
+            }}
+          >
+            ⚠️ Your partner switched tabs
+          </p>
+        )}
+
         <h1 style={{ color: "#2F3A34" }}>Focus Session</h1>
 
         <h2 style={{ fontSize: "48px", color: "#6F916F" }}>
