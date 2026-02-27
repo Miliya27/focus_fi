@@ -13,7 +13,7 @@ function App() {
         ? "userB_active"
         : "userA_active";
 
-    console.log("My role:", role);
+    //console.log("My role:", role);
 
     let timerInterval = null;
 
@@ -27,15 +27,15 @@ function App() {
       const shouldRun =
         data.userA_active && data.userB_active;
 
-      // controller updates running state
+      
       if (isController) {
         if (data.running !== shouldRun) {
           update(roomRef, { running: shouldRun });
         }
 
-        // START TIMER (only once)
+        
         if (shouldRun && !timerInterval) {
-          console.log("Timer started");
+          //console.log("Timer started");
 
           timerInterval = setInterval(async () => {
             const snap = await get(roomRef);
@@ -51,14 +51,14 @@ function App() {
 
         // STOP TIMER
         if (!shouldRun && timerInterval) {
-          console.log("Timer stopped");
+          //console.log("Timer stopped");
           clearInterval(timerInterval);
           timerInterval = null;
         }
       }
     });
 
-    // tab visibility detection
+    
     const handleVisibility = () => {
       const isActive =
         document.visibilityState === "visible";
@@ -67,7 +67,7 @@ function App() {
         [role]: isActive,
       });
 
-      console.log("Tab active:", isActive);
+      //console.log("Tab active:", isActive);
     };
 
     document.addEventListener(
